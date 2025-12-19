@@ -4,20 +4,20 @@
 
 An enterprise-grade, intelligent IT Support Ticket system featuring real-time "Smart Impact" analysis, active incident resolution centers, and automated ticket deflection strategies.
 
-## 🚀 Project Overview
+--Project Overview
 
 The Impact-Aware Support System revolutionizes traditional helpdesk workflows by moving from "First-In-First-Out" to **"Highest-Business-Impact-First"**. It uses a sophisticated logic engine to prioritize issues based on service criticality and affected user count, ensuring that major outages (like Email or Payroll) are always handled before minor individual issues.
 
-### Key Features:
+--Key Features:
 
-*   **⚡ Smart Impact Prioritization**: Automatically calculates impact scores (`Criticality` × `User Count`) to prioritize tickets dynamically.
-*   **🛡️ Resolution Center**: A dedicated "War Room" interface for DevOps teams to monitor active, high-severity incidents in real-time.
-*   **🧠 Intelligent Ticket Deflection**: As users type their issue, the system instantly suggests known solutions and detects duplicate incidents, reducing ticket volume by up to 30%.
-*   **⏱️ Real-Time ETA Prediction**: Uses historical data to predict resolution times for specific failure types.
-*   **📊 Live Operational Dashboard**: Visualizes service health, active/critical ticket ratios, and system uptime.
-*   **🔔 SLA Awareness**: Proactive warnings for critical-priority submissions to prevent alarm fatigue.
+* Smart Impact Prioritization**: Automatically calculates impact scores (`Criticality` × `User Count`) to prioritize tickets dynamically.
+* Resolution Center**: A dedicated "War Room" interface for DevOps teams to monitor active, high-severity incidents in real-time.
+* Intelligent Ticket Deflection**: As users type their issue, the system instantly suggests known solutions and detects duplicate incidents, reducing ticket volume by up to 30%.
+* Real-Time ETA Prediction**: Uses historical data to predict resolution times for specific failure types.
+* Live Operational Dashboard**: Visualizes service health, active/critical ticket ratios, and system uptime.
+* SLA Awareness**: Proactive warnings for critical-priority submissions to prevent alarm fatigue.
 
-## 🛠️ Tech Stack
+--Tech Stack:
 
 This project works as a monolithic full-stack application separated into a clean client-server architecture:
 
@@ -57,7 +57,7 @@ impact_support_system/
 └── README.md             # Project Documentation
 ```
 
-## 🚀 Getting Started
+--Getting Started
 
 ### Prerequisites
 - Node.js installed on your machine.
@@ -94,7 +94,7 @@ npm run dev
 # App runs on http://localhost:5173
 ```
 
-## ☁️ Deployment Guide
+## Deployment Guide
 
 ### Backend (Railway / Render / Fly.io)
 The `backend/` folder constitutes a complete Docker-ready service.
@@ -108,7 +108,7 @@ The `backend/` folder constitutes a complete Docker-ready service.
 3. Set the "Build Command" to `npm run build` and "Output Directory" to `dist`.
 4. **Important**: You must update `frontend/src/services/api.js` to point to your live backend URL (replace `http://localhost:3000`).
 
-## 📜 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
