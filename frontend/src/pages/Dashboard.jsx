@@ -54,14 +54,18 @@ const ActivityFeed = () => {
 export default function Dashboard() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [showCreate, setShowCreate] = useState(false);
 
     const loadData = () => {
         api.getDashboardStats().then(data => {
+            if (data.error) throw new Error(data.error);
             setStats(data);
-            setLoading(false);
+            setError(null);
         }).catch(err => {
-            console.error(err);
+            console.error("Dashboard Load Error:", err);
+            setError("Unable to connect to live services.");
+        }).finally(() => {
             setLoading(false);
         });
     };
@@ -72,7 +76,28 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Initializing Dashboard Link...</div>;
+    if (loading && !stats) return <div className="p-10 text-center text-slate-500 animate-pulse">Initializing Dashboard Link...</div>;
+
+    // Error State / Empty State to prevent Crash
+    if (error || !stats || !stats.affectedServices) {
+        return (
+            <div className="p-10 text-center animate-fade-in">
+                <div className="inline-flex bg-red-500/10 p-4 rounded-full mb-4 text-red-500">
+                    <AlertCircle size={48} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">System Status: Reconnecting</h3>
+                <p className="text-slate-400 max-w-md mx-auto">
+                    The dashboard is attempting to establish a secure link with the cloud database.
+                    This typically resolves in 10-30 seconds after a cold boot.
+                </p>
+                <div className="mt-8">
+                    <button onClick={() => window.location.reload()} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition-colors">
+                        Force Refresh
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const COLORS = ['#0ea5e9', '#ef4444', '#eab308', '#22c55e', '#a855f7'];
 
@@ -96,22 +121,21 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Active Incidents"
-                    value={stats?.totalOpen || 0}
+                    value={stats.totalOpen || 0}
                     sub="Currently affecting operations"
                     icon={AlertCircle}
                     color="text-red-500"
                 />
-                {/* Stats cards same as before... */}
                 <StatCard
                     title="Avg Resolution"
-                    value={`${stats?.avgResolutionHours || 0}h`}
+                    value={`${stats.avgResolutionHours || 0}h`}
                     sub="Rolling 30-day average"
                     icon={Clock}
                     color="text-blue-500"
                 />
                 <StatCard
                     title="Critical Impact"
-                    value={stats?.criticalTickets || 0}
+                    value={stats.criticalTickets}
                     sub="High priority tickets"
                     icon={Zap}
                     color="text-yellow-500"
@@ -148,7 +172,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Activity Feed (New!) */}
+                {/* Activity Feed */}
                 <ActivityFeed />
             </div>
 
