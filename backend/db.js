@@ -1,15 +1,26 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 const dbPath = path.join(__dirname, 'database.db');
+
+// Delete DB on startup to force re-seed (Cloud Ephemeral Strategy)
+// In a real prod app we wouldn't do this, but for this demo to work nicely on Railway's file system,
+// we want to ensure the latest seed data is always loaded on deploy.
+try {
+  if (process.env.NODE_ENV === 'production' && fs.existsSync(dbPath)) {
+    console.log('Production startup: wiping local SQLite to ensure fresh seed data...');
+    fs.unlinkSync(dbPath);
+  }
+} catch (e) { console.error('Error resetting DB:', e); }
+
 const db = new Database(dbPath);
 
 function initDB() {
-  // Check if tables exist
-  const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tickets'").get();
-  if (tableExists) return db;
-
   console.log('Initializing Database Schema...');
+
+  // Enable Foreign Keys
+  db.exec('PRAGMA foreign_keys = ON;');
 
   db.exec(`
       CREATE TABLE IF NOT EXISTS services (
@@ -46,19 +57,31 @@ function initDB() {
       );
     `);
 
-  // Seed Data (RESTORED GUARANTEED DATA)
+  // Check if we need to seed (if services empty)
+  const count = db.prepare('SELECT COUNT(*) as c FROM services').get().c;
+  if (count > 0) {
+    console.log('Database already populated. Skipping seed.');
+    return db;
+  }
+
+  // --- SEED DATA ---
   console.log('Seeding Data with GUARANTEED Dataset...');
+
+  // 1. Services (Expanded List)
   const SERVICES = [
     { name: 'Corporate Email (Exchange)', category: 'Communication', crit: 5, users: 4500 },
     { name: 'VPN Gateway - US East', category: 'Network', crit: 4, users: 1200 },
+    { name: 'VPN Gateway - EU West', category: 'Network', crit: 4, users: 800 },
     { name: 'Payroll System (SAP)', category: 'Finance', crit: 5, users: 400 },
     { name: 'Customer Support Portal', category: 'External', crit: 4, users: 8000 },
     { name: 'Office WiFi (HQ)', category: 'Network', crit: 3, users: 600 },
     { name: 'JIRA Issue Tracker', category: 'DevOps', crit: 3, users: 300 },
-    { name: 'Slack Messaging', category: 'Communication', crit: 2, users: 4500 }
+    { name: 'GitHub Enterprise', category: 'DevOps', crit: 4, users: 150 },
+    { name: 'Slack Messaging', category: 'Communication', crit: 2, users: 4500 },
+    { name: 'HR Portal (Workday)', category: 'HR', crit: 3, users: 4500 }
   ];
 
-  const insertService = db.prepare('INSERT OR IGNORE INTO services (name, category, criticality_score, user_count_estimate) VALUES (?, ?, ?, ?)');
+  const insertService = db.prepare('INSERT INTO services (name, category, criticality_score, user_count_estimate) VALUES (?, ?, ?, ?)');
   SERVICES.forEach(s => insertService.run(s.name, s.category, s.crit, s.users));
 
   // Maps for IDs
@@ -66,12 +89,22 @@ function initDB() {
   const getServiceId = db.prepare("SELECT id FROM services WHERE name = ?");
   SERVICES.forEach(s => serviceIds[s.name] = getServiceId.get(s.name).id);
 
-  // Seed Alternatives
+  // 2. Alternatives (Rich Data)
   const insertAlt = db.prepare('INSERT INTO alternatives (service_id, issue_type, description) VALUES (?, ?, ?)');
-  insertAlt.run(serviceIds['Corporate Email (Exchange)'], 'Server', 'Use Outlook Web Access (OWA) via the backup URL.');
-  insertAlt.run(serviceIds['VPN Gateway - US East'], 'Network', 'Connect to VPN Gateway - US West.');
-  insertAlt.run(serviceIds['Payroll System (SAP)'], 'Database', 'Manual timesheet entry forms are available on the Intranet.');
+
+  insertAlt.run(serviceIds['Corporate Email (Exchange)'], 'Server', 'Use Outlook Web Access (OWA) via the backup URL: https://owa-backup.corp.com');
+  insertAlt.run(serviceIds['Corporate Email (Exchange)'], 'Client', 'Restart Outlook in Safe Mode (Hold Ctrl while opening).');
+
+  insertAlt.run(serviceIds['VPN Gateway - US East'], 'Network', 'Connect to "VPN Gateway - EU West" temporarily.');
+  insertAlt.run(serviceIds['VPN Gateway - US East'], 'Auth', 'Use the legacy 2FA token generator.');
+
+  insertAlt.run(serviceIds['Payroll System (SAP)'], 'Database', 'Manual timesheet entry forms are available on the Intranet Homepage.');
+
   insertAlt.run(serviceIds['Office WiFi (HQ)'], 'Network', 'Use the "Guest" network or hardline ethernet if available.');
+
+  insertAlt.run(serviceIds['JIRA Issue Tracker'], 'Access', 'Use the read-only mirror at jira-backup.internal.');
+
+  insertAlt.run(serviceIds['Slack Messaging'], 'App', 'Use the web browser version (slack.com) instead of the desktop app.');
 
   // Helper to create dates
   const hoursAgo = (h) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
@@ -81,12 +114,13 @@ function initDB() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-  // ACTIVE INCIDENTS
+  // 3. ACTIVE INCIDENTS (Visible on Dashboard)
   insertTicket.run('INC-2025-001', 'Outlook Disconnected for Remote Users', 'Users reporting inability to send/receive emails.', serviceIds['Corporate Email (Exchange)'], 'In Progress', 'Critical', 95, hoursAgo(2), null, null, null, '45 mins');
   insertTicket.run('INC-2025-002', 'VPN Auth Timeout', 'Authentication server is timing out.', serviceIds['VPN Gateway - US East'], 'Diagnosing', 'High', 80, hoursAgo(0.5), null, null, null, '1.5 hours');
   insertTicket.run('INC-2025-003', 'WiFi Intermittent in Main Lobby', 'Signal dropping in and out.', serviceIds['Office WiFi (HQ)'], 'Open', 'Medium', 40, hoursAgo(4), null, null, null, '3 hours');
+  insertTicket.run('INC-2025-004', 'Slack Messages Delayed', 'Messages taking 5+ mins to deliver.', serviceIds['Slack Messaging'], 'Open', 'Low', 20, hoursAgo(0.2), null, null, null, 'Unknown');
 
-  // RESOLVED INCIDENTS (For Stats - 50 random)
+  // 4. RESOLVED INCIDENTS (For Stats)
   for (let i = 0; i < 50; i++) {
     const service = SERVICES[Math.floor(Math.random() * SERVICES.length)];
     const sid = serviceIds[service.name];
